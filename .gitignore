@@ -1,0 +1,21 @@
+# OS
+.DS_Store
+
+# VSCode
+.vscode/
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Build outputs
+build/
+dist/
+*.o
+*.a
+*.elf
+*.map
+
+# Python
+__pycache__/
