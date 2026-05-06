@@ -1,3 +1,21 @@
+/*
+ * main.cpp — DANA Mower firmware entry point (Arduino)
+ *
+ * This file owns the application loop only — no raw hardware calls live here.
+ * All hardware access goes through hal_arduino.h / hal_arduino.cpp.
+ *
+ * Architecture:
+ *   hal_readInputs()        → InputSnapshot  (hardware → data)
+ *   SafetyManager::update() → SafetyStatus   (data → safety verdict)
+ *   StateMachine            → SystemState     (safety verdict → state)
+ *   ManualMixer::mix()      → WheelCommand    (state + inputs → wheel targets)
+ *   SlewRateLimiter         → WheelCommand    (targets → rate-limited outputs)
+ *   hal_setMotorOutputs()                     (outputs → hardware)
+ *
+ * To port to STM32: change #include "hal_arduino.h" → #include "hal_stm32.h".
+ * All other code compiles unchanged.
+ */
+
 #include <Arduino.h>
 
 #include "types.h"
@@ -6,172 +24,135 @@
 #include "manual_control.h"
 #include "slew_rate_limiter.h"
 
-// =======================
-// Placeholder "HAL" layer
-// Replace these with real inverter + brake control later.
-// =======================
-static void motorsEnable(bool en) {
-  // TODO: set inverter enable pin, etc.
-  (void)en;
-}
+#include "hal_arduino.h"   // <── swap to hal_stm32.h when migrating
 
-static void brakesApply(bool apply) {
-  // TODO: control 24V brake relay (apply=true -> brakes ON)
-  (void)apply;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// Application-layer objects
+// ─────────────────────────────────────────────────────────────────────────────
+static StateMachine    sm;
+static SafetyManager   safety;
+static ManualMixer     mixer;
 
-static void setMotorOutputs(float leftNorm, float rightNorm) {
-  // TODO: convert -1..+1 to PWM/CAN/UART for inverters
-  (void)leftNorm;
-  (void)rightNorm;
-}
+// Slew limiters cap acceleration to 2 units/sec (0→full in ~500 ms).
+// Increase the value to allow faster acceleration; decrease to slow it down.
+static SlewRateLimiter leftLimiter(2.0f);
+static SlewRateLimiter rightLimiter(2.0f);
 
-// =======================
-// Inputs (placeholder)
-// =======================
-static InputSnapshot readInputs() {
-  InputSnapshot in;
+static uint32_t lastMs = 0;
 
-  // For now, fake inputs so the code is understandable and testable:
-  // - Press 'e' on serial monitor to toggle estop
-  // - Press 'm' to toggle operator enable
-  // - Use 'w/s' throttle up/down, 'a/d' steering left/right
-  static bool estop = false;
-  static bool enable = false;
-  static float throttle = 0.0f;
-  static float steer = 0.0f;
-
-  while (Serial.available() > 0) {
-    char c = (char)Serial.read();
-    if (c == 'e') estop = !estop;
-    if (c == 'm') enable = !enable;
-    if (c == 'w') throttle = clamp(throttle + 0.1f, -1.0f, 1.0f);
-    if (c == 's') throttle = clamp(throttle - 0.1f, -1.0f, 1.0f);
-    if (c == 'd') steer    = clamp(steer + 0.1f, -1.0f, 1.0f);
-    if (c == 'a') steer    = clamp(steer - 0.1f, -1.0f, 1.0f);
-    if (c == 'c') { throttle = 0.0f; steer = 0.0f; } // center
-    if (c == 'r') in.faultAcknowledge = true;        // reset/ack
-  }
-
-  in.estopPressed = estop;
-  in.operatorEnable = enable;
-  in.throttleNorm = throttle;
-  in.steeringNorm = steer;
-
-  // In real life, you’d set this false if RC/serial/etc. stops updating
-  in.inputSignalAlive = true;
-
-  return in;
-}
-
-// =======================
-// Control objects
-// =======================
-StateMachine sm;
-SafetyManager safety;
-ManualMixer mixer;
-SlewRateLimiter leftLimiter(2.0f);   // 2 units/sec
-SlewRateLimiter rightLimiter(2.0f);  // 2 units/sec
-
-uint32_t lastMs = 0;
-
+// ─────────────────────────────────────────────────────────────────────────────
+// setup()
+// ─────────────────────────────────────────────────────────────────────────────
 void setup() {
-  Serial.begin(115200);
-  delay(200);
+    Serial.begin(115200);
+    delay(200);
 
-  safety.begin();
-  sm.setState(SystemState::SAFE_IDLE);
+    hal_init();        // Configure all pins, assert safe defaults
+    safety.begin();    // Initialize SafetyManager internal state
+    sm.setState(SystemState::SAFE_IDLE);
 
-  Serial.println("DANA Mower Manual Control (placeholder)");
-  Serial.println("Keys: e=toggle estop, m=toggle enable, w/s throttle, a/d steer, c=center, r=ack fault");
+    Serial.println("DANA Mower — manual control firmware");
+    Serial.println("State: SAFE_IDLE. Enable operator switch to drive.");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// loop()
+// ─────────────────────────────────────────────────────────────────────────────
 void loop() {
-  const uint32_t now = millis();
-  const float dt = (lastMs == 0) ? 0.0f : (now - lastMs) / 1000.0f;
-  lastMs = now;
+    const uint32_t now = millis();
+    const float dt = (lastMs == 0) ? 0.0f
+                                   : (float)(now - lastMs) / 1000.0f;
+    lastMs = now;
 
-  InputSnapshot in = readInputs();
-  SafetyStatus ss = safety.update(in, now);
+    // ── 1. Read all physical sensors through the HAL ──────────────────────────
+    InputSnapshot in = hal_readInputs();
 
-  // Force FAULT if safety says so
-  if (ss.mustFault) {
-    sm.setState(SystemState::FAULT);
-  }
+    // ── 2. Run safety logic ───────────────────────────────────────────────────
+    SafetyStatus ss = safety.update(in, now);
 
-  WheelCommand wheels{0, 0};
+    if (ss.mustFault) {
+        sm.setState(SystemState::FAULT);
+    }
 
-  switch (sm.state()) {
-    case SystemState::SAFE_IDLE:
-      brakesApply(true);
-      motorsEnable(false);
-      setMotorOutputs(0, 0);
+    // ── 3. State machine ──────────────────────────────────────────────────────
+    WheelCommand wheels{};   // zero-initialized
 
-      if (ss.canEnableDrive) {
-        sm.setState(SystemState::MANUAL);
-        leftLimiter.reset(0);
-        rightLimiter.reset(0);
-      }
-      break;
+    switch (sm.state()) {
 
-    case SystemState::MANUAL: {
-      if (!ss.canEnableDrive) {
-        sm.setState(SystemState::SAFE_IDLE);
-        break;
-      }
+        // ── SAFE_IDLE: brakes on, motors off, waiting for operator enable ─────
+        case SystemState::SAFE_IDLE:
+            hal_setBrake(true);
+            hal_setMotorEnable(false);
+            hal_setMotorOutputs(0.0f, 0.0f);
 
-      brakesApply(false);
-      motorsEnable(true);
+            if (ss.canEnableDrive) {
+                leftLimiter.reset(0.0f);
+                rightLimiter.reset(0.0f);
+                sm.setState(SystemState::MANUAL);
+            }
+            break;
 
-      DriveCommand cmd;
-      cmd.throttle = in.throttleNorm;
-      cmd.steering = in.steeringNorm;
-      cmd.enableDrive = true;
+        // ── MANUAL: operator-controlled differential drive ────────────────────
+        case SystemState::MANUAL: {
+            if (!ss.canEnableDrive) {
+                sm.setState(SystemState::SAFE_IDLE);
+                break;
+            }
 
-      wheels = mixer.mix(cmd);
-      wheels.left  = leftLimiter.step(wheels.left, dt);
-      wheels.right = rightLimiter.step(wheels.right, dt);
+            hal_setBrake(false);
+            hal_setMotorEnable(true);
 
-      setMotorOutputs(wheels.left, wheels.right);
-    } break;
+            DriveCommand cmd;
+            cmd.throttle    = in.throttleNorm;
+            cmd.steering    = in.steeringNorm;
+            cmd.enableDrive = true;
 
-    case SystemState::FAULT:
-      motorsEnable(false);
-      brakesApply(true);
-      setMotorOutputs(0, 0);
+            wheels = mixer.mix(cmd);
+            wheels.left  = leftLimiter.step(wheels.left,  dt);
+            wheels.right = rightLimiter.step(wheels.right, dt);
 
-      // Clear latched fault only with operator ack AND safety cleared
-      if (ss.faultCleared && in.faultAcknowledge) {
-        // NOTE: In a real implementation, you would also clear the latched fault inside SafetyManager.
-        // For this starter code, we just go back to SAFE_IDLE.
-        sm.setState(SystemState::SAFE_IDLE);
-      }
-      break;
+            hal_setMotorOutputs(wheels.left, wheels.right);
+        } break;
 
-    default:
-      sm.setState(SystemState::SAFE_IDLE);
-      break;
-  }
+        // ── FAULT: brakes on, motors off, wait for operator acknowledge ───────
+        case SystemState::FAULT:
+            hal_setBrake(true);
+            hal_setMotorEnable(false);
+            hal_setMotorOutputs(0.0f, 0.0f);
 
-  // Debug print occasionally
-  static uint32_t lastPrint = 0;
-  if (now - lastPrint > 250) {
-    lastPrint = now;
-    Serial.print("State=");
-    Serial.print((int)sm.state());
-    Serial.print(" estop=");
-    Serial.print(in.estopPressed);
-    Serial.print(" enable=");
-    Serial.print(in.operatorEnable);
-    Serial.print(" thr=");
-    Serial.print(in.throttleNorm, 2);
-    Serial.print(" str=");
-    Serial.print(in.steeringNorm, 2);
-    Serial.print(" L=");
-    Serial.print(wheels.left, 2);
-    Serial.print(" R=");
-    Serial.println(wheels.right, 2);
-  }
+            // Clear fault only when:
+            //   (a) safety conditions are clear (estop released, inputs alive)
+            //   (b) operator explicitly presses the fault-acknowledge button
+            if (ss.faultCleared && in.faultAcknowledge) {
+                sm.setState(SystemState::SAFE_IDLE);
+            }
+            break;
 
-  delay(10);
+        // ── Catch-all: unknown state → safe idle ──────────────────────────────
+        default:
+            sm.setState(SystemState::SAFE_IDLE);
+            break;
+    }
+
+    // ── 4. Update status LEDs ─────────────────────────────────────────────────
+    hal_setStatusLED(sm.state());
+
+    // ── 5. Debug print (250 ms interval, non-blocking) ───────────────────────
+    static uint32_t lastPrint = 0;
+    if (now - lastPrint >= 250) {
+        lastPrint = now;
+
+        const char* stateNames[] = {"IDLE", "MANUAL", "AUTO", "DOCKING", "FAULT"};
+        uint8_t si = (uint8_t)sm.state();
+
+        Serial.print("State="); Serial.print(stateNames[si < 5 ? si : 0]);
+        Serial.print(" estop=");  Serial.print(in.estopPressed);
+        Serial.print(" enable="); Serial.print(in.operatorEnable);
+        Serial.print(" thr=");    Serial.print(in.throttleNorm,  2);
+        Serial.print(" str=");    Serial.print(in.steeringNorm,  2);
+        Serial.print(" L=");      Serial.print(wheels.left,      2);
+        Serial.print(" R=");      Serial.println(wheels.right,   2);
+    }
+
+    delay(10);   // 100 Hz target loop rate
 }
