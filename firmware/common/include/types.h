@@ -10,17 +10,13 @@ enum class SystemState : uint8_t {
 };
 
 struct InputSnapshot {
-  // Normalized manual controls (-1..+1). These are placeholders for now.
   float throttleNorm = 0.0f;  // -1 back .. +1 forward
   float steeringNorm = 0.0f;  // -1 left .. +1 right
 
-  // Operator/safety inputs
-  bool estopPressed = false;      // true => emergency stop
-  bool operatorEnable = false;    // true => operator requests drive enabled
-  bool faultAcknowledge = false;  // true => operator acknowledges fault reset
-
-  // For watchdog logic (if inputs stop updating)
-  bool inputSignalAlive = true;
+  // Operator/safety inputs from the GIGA wiring diagram.
+  bool ignitionOn = false;
+  bool estopPressed = true;        // true => emergency stop
+  bool canNetworkHealthy = false;  // true only after all required TM4s report healthy
 };
 
 struct DriveCommand {
