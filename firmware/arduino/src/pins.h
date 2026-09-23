@@ -7,6 +7,8 @@
 #define PIN_JOY_STEERING A1
 #define PIN_IGNITION     2
 #define PIN_ESTOP        3
+// Deck (blade) motor switch; same protected 3.3 V conditioning as D2/D3.
+#define PIN_DECK_SWITCH  4
 
 // GIGA FDCAN2 logic connections to the isolated CAN transceiver.
 #define PIN_CAN_RX 93
@@ -15,6 +17,7 @@
 // Set these to match the final conditioned-input circuit, after bench test.
 #define IGNITION_ACTIVE_HIGH true
 #define ESTOP_ACTIVE_LOW     true
+#define DECK_SWITCH_ACTIVE_HIGH true
 
 #define JOY_ADC_BITS       12
 #define JOY_ADC_CENTER   2048

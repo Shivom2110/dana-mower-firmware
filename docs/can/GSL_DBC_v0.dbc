@@ -1,0 +1,314 @@
+VERSION ""
+
+
+NS_ : 
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: VCU INV ALL
+
+
+BO_ 3221225472 VECTOR__INDEPENDENT_SIG_MSG: 0 Vector__XXX
+ SG_ Dgital_Input1to8_State : 0|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ Digital_Input9to1_State : 0|8@1+ (1,0) [0|1] "" Vector__XXX
+ SG_ NewSignal_0035 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
+ SG_ NewSignal_0036 : 0|1@1+ (1,0) [0|0] "" Vector__XXX
+
+BO_ 386 TPDO1: 8 INV
+ SG_ MainsState : 0|8@1+ (1,0) [0|9] "dgt"  VCU
+ SG_ FaultCode : 8|8@1+ (1,0) [0|0] "dgt"  VCU
+ SG_ DC_BusVoltage : 16|16@1- (0.1,0) [-3276.8|3276.7] "V"  VCU
+ SG_ DC_BusCurrent : 32|16@1- (0.1,0) [-3276.8|3276.7] "A"  VCU
+ SG_ KeySwitchVoltage : 48|16@1- (0.1,0) [-3276.8|3276.7] "V"  VCU
+
+BO_ 642 TPDO2: 8 INV
+ SG_ Analog_Input1 : 0|16@1- (1,0) [-32768|32767] "mV"  VCU
+ SG_ Analog_Input2 : 16|16@1- (1,0) [-32768|32767] "mV"  VCU
+ SG_ Analog_Input3 : 32|16@1- (1,0) [-32768|32767] "mV"  VCU
+ SG_ Analog_Input4 : 48|16@1- (1,0) [-32768|32767] "mV"  VCU
+
+BO_ 898 TPDO3: 8 INV
+ SG_ Analog_Input5 : 0|16@1- (1,0) [-32768|32767] "mV"  VCU
+ SG_ Analog_Input6 : 16|16@1- (1,0) [-32768|32767] "mV"  VCU
+ SG_ Digital_Input17 : 48|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input18 : 49|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input19 : 50|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Toggle_bit : 51|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Driver_Output4_State : 55|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Driver_Output1_State : 56|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Driver_Output2_State : 57|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Driver_Output3_State : 58|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Output1_State : 59|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Output2_State : 60|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Fault_Level : 61|3@1+ (1,0) [0|7] "dgt"  VCU
+ SG_ Digital_Input1 : 32|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input2 : 33|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input3 : 34|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input4 : 35|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input5 : 36|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input6 : 37|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input7 : 38|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input8 : 39|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input9 : 40|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input10 : 41|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input11 : 42|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input12 : 43|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input13 : 44|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input14 : 45|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input15 : 46|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Digital_Input16 : 47|1@1+ (1,0) [0|1] "dgt"  VCU
+
+BO_ 1154 TPDO4: 8 INV
+ SG_ Motor1_ActualSpeed : 0|16@1- (1,0) [-32768|32767] "rpm"  VCU
+ SG_ Motor1_ActualRelativeTorque : 16|16@1- (0.0030581,0) [-100|100] "%"  VCU
+ SG_ Motor1_Temperature : 32|8@1+ (1,-40) [-40|215] "°C"  VCU
+ SG_ Inverter1_Temperature : 40|8@1+ (1,-40) [-40|215] "°C"  VCU
+ SG_ Motor1_ControlMode : 48|2@1+ (1,0) [0|2] ""  VCU
+ SG_ Motor1_PWM_Output : 50|1@1+ (1,0) [0|1] ""  VCU
+ SG_ Motor1_ReferenceSpeedTorque : 51|1@1+ (1,0) [0|1] ""  VCU
+ SG_ Motor1_EmergencyStop : 52|1@1+ (1,0) [0|1] ""  VCU
+ SG_ Motor1_SafeStop : 53|1@1+ (1,0) [0|1] ""  VCU
+ SG_ Motor1_SpeedLimit : 54|1@1+ (1,0) [0|1] ""  VCU
+ SG_ Motor1_State : 56|4@1+ (1,0) [0|1] ""  VCU
+
+BO_ 1666 TPDO5: 8 INV
+ SG_ Motor2_ActualSpeed : 0|16@1- (1,0) [-32768|32767] "rpm"  VCU
+ SG_ Motor2_ActualRelativeTorque : 16|16@1- (0.0030581,0) [-100|100] "%"  VCU
+ SG_ Motor2_Temperature : 32|8@1+ (1,-40) [-40|215] "°C"  VCU
+ SG_ Inverter2_Temperature : 40|8@1+ (1,-40) [-40|215] "°C"  VCU
+ SG_ Motor2_ControlMode : 48|2@1+ (1,0) [0|2] "dgt"  VCU
+ SG_ Motor2_PWM_Output : 50|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Motor2_ReferenceSpeedTorque : 51|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Motor2_EmergencyStop : 52|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Motor2_SafeStop : 53|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Motor2_SpeedLimit : 54|1@1+ (1,0) [0|1] "dgt"  VCU
+ SG_ Motor2_State : 56|4@1+ (1,0) [0|6] "dgt"  VCU
+
+BO_ 1698 TPDO6: 8 INV
+ SG_ DriverOuput1Current : 0|16@1- (1,0) [0|65535] "A"  VCU
+ SG_ DriverOuput2Current : 16|16@1- (1,0) [0|65535] "A"  VCU
+ SG_ DriverOuput3Current : 32|16@1- (1,0) [0|65535] "A"  VCU
+ SG_ Motor1_Current : 48|8@1+ (4,0) [0|1020] "Arms"  VCU
+ SG_ Motor2_Current : 56|8@1+ (4,0) [0|1020] "Arms"  VCU
+
+BO_ 513 RPDO1: 8 VCU
+ SG_ Request_for_Mains_State : 0|8@1+ (1,0) [0|9] "dgt"  INV
+ SG_ Request_for_DigIn1 : 8|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Request_for_DigIn2 : 9|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ First_SW_Reset_Request : 13|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Request_for_DrOut4_Vlt_Md : 15|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Request_for_DrOut1_PWMCurrent_Md : 16|16@1+ (1,0.00305185) [0|100] "%"  INV
+ SG_ Request_for_DrOut2_PWMCurrent_Md : 32|16@1+ (1,0.00305185) [0|100] "%"  INV
+ SG_ Request_for_DrOut3_PWMCurrent_Md : 48|16@1+ (1,0.00305185) [0|100] "%"  INV
+ SG_ Request_for_DrOut1 : 10|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Request_for_DrOut2 : 11|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Request_for_DrOut3 : 12|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Second_SW_Reset_Request : 14|1@1+ (1,0) [0|1] "dgt"  INV
+
+BO_ 769 RPDO2: 8 VCU
+ SG_ Motor1_SpeedRef_Lim : 0|16@1- (1,0) [-10000|10000] "rpm"  INV
+ SG_ Motor1_TorqueRef_Lim : 16|16@1- (0.0030581,0) [-100|100] "%"  INV
+ SG_ Motor1_DroopRate : 32|8@1+ (0.392157,0) [0|100] "%"  INV
+ SG_ Motor1_ControlModeReq : 40|2@1+ (1,0) [0|3] "dgt"  INV
+ SG_ Motor1_PWMOutEnableReq : 42|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor1_RefSpeedTorque_EnableReq : 43|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor1_EmergencyStopReq : 44|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor1_SafetStopReq : 45|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor1_SpeedLimitReq : 46|1@1+ (1,0) [0|1] "dgt"  INV
+
+BO_ 1025 RPDO3: 8 VCU
+ SG_ Motor2_SpeedRef_Lim : 0|16@1- (1,0) [-10000|10000] "rpm"  INV
+ SG_ Motor2_TorqueRef_Lim : 16|16@1- (0.0030581,0) [-100|100] "%"  INV
+ SG_ Motor2_DroopRate : 32|8@1+ (0.392157,0) [0|100] "%"  INV
+ SG_ Motor2_ControlModeReq : 40|2@1+ (1,0) [0|3] "dgt"  INV
+ SG_ Motor2_PWMOutEnableReq : 42|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor2_RefSpeedTorque_EnableReq : 43|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor2_EmergencyStopReq : 44|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor2_SafetStopReq : 45|1@1+ (1,0) [0|1] "dgt"  INV
+ SG_ Motor2_SpeedLimitReq : 46|1@1+ (1,0) [0|1] "dgt"  INV
+
+BO_ 1281 RPDO4: 8 VCU
+ SG_ Batt_Chg_Curr_Limit : 0|16@1+ (1,0) [-32768|32767] "A"  INV
+ SG_ Batt_Dischg_Curr_Limit : 16|16@1+ (1,0) [-32768|32767] "A"  INV
+
+BO_ 0 VCU_Wakeup: 2 VCU
+ SG_ Wakeup : 0|16@1+ (1,0) [0|65535] "dgt"  ALL
+
+BO_ 1793 INV_Heartbeat: 1 INV
+ SG_ HB : 0|8@1+ (1,0) [0|255] "dgt"  VCU
+
+
+
+CM_ BO_ 3221225472 "This is a message for not used signals, created by Vector CANdb++ DBC OLE DB Provider.";
+CM_ SG_ 3221225472 Dgital_Input1to8_State "0 = Off;
+1 = On.";
+CM_ SG_ 3221225472 Digital_Input9to1_State "0 = Off;
+1 = On.";
+CM_ SG_ 386 MainsState "Inverter main state";
+CM_ SG_ 386 FaultCode "See Fault List";
+CM_ SG_ 386 DC_BusVoltage "DC-Bus Voltage";
+CM_ SG_ 386 DC_BusCurrent "DC-Bus Current";
+CM_ SG_ 386 KeySwitchVoltage "Power battery voltage";
+CM_ SG_ 642 Analog_Input1 "Analog input 1";
+CM_ SG_ 642 Analog_Input2 "Analog input 2";
+CM_ SG_ 642 Analog_Input3 "Analog input 3";
+CM_ SG_ 642 Analog_Input4 "Analog input 4";
+CM_ SG_ 898 Analog_Input5 "Analog input 5";
+CM_ SG_ 898 Analog_Input6 "Analog input 6";
+CM_ SG_ 898 Digital_Input17 "Digital input 17";
+CM_ SG_ 898 Digital_Input18 "Digital input 18";
+CM_ SG_ 898 Digital_Input19 "Digital input 19";
+CM_ SG_ 898 Toggle_bit "Toggle Bit";
+CM_ SG_ 898 Driver_Output4_State "Driver Output 4 State";
+CM_ SG_ 898 Driver_Output1_State "Driver Output 1 State";
+CM_ SG_ 898 Driver_Output2_State "Driver Output 2 State";
+CM_ SG_ 898 Driver_Output3_State "Driver Output 3 State";
+CM_ SG_ 898 Digital_Output1_State "Digital output 1 state";
+CM_ SG_ 898 Digital_Output2_State "Digital output 2 state";
+CM_ SG_ 898 Fault_Level "Fault Level";
+CM_ SG_ 898 Digital_Input1 "Digital input 1";
+CM_ SG_ 898 Digital_Input2 "Digital input 2";
+CM_ SG_ 898 Digital_Input3 "Digital input 3";
+CM_ SG_ 898 Digital_Input4 "Digital input 4";
+CM_ SG_ 898 Digital_Input5 "Digital input 5";
+CM_ SG_ 898 Digital_Input6 "Digital input 6";
+CM_ SG_ 898 Digital_Input7 "Digital input 7";
+CM_ SG_ 898 Digital_Input8 "Digital input 8";
+CM_ SG_ 898 Digital_Input9 "Digital input 9";
+CM_ SG_ 898 Digital_Input10 "Digital input 10";
+CM_ SG_ 898 Digital_Input11 "Digital input 11";
+CM_ SG_ 898 Digital_Input12 "Digital input 12";
+CM_ SG_ 898 Digital_Input13 "Digital input 13";
+CM_ SG_ 898 Digital_Input14 "Digital input 14";
+CM_ SG_ 898 Digital_Input15 "Digital input 15";
+CM_ SG_ 898 Digital_Input16 "Digital input 16";
+CM_ SG_ 1154 Motor1_ActualSpeed "Motor 1 - Actual speed";
+CM_ SG_ 1154 Motor1_ActualRelativeTorque "Motor 1 - Actual torque";
+CM_ SG_ 1154 Motor1_Temperature "Motor 1 - Temperature";
+CM_ SG_ 1154 Inverter1_Temperature "Inverter 1 - Temperature";
+CM_ SG_ 1154 Motor1_ControlMode "Motor 1 - Control mode";
+CM_ SG_ 1154 Motor1_PWM_Output "Motor 1 - PWM output";
+CM_ SG_ 1154 Motor1_ReferenceSpeedTorque "Motor 1 - reference speed/torque";
+CM_ SG_ 1154 Motor1_EmergencyStop "Motor 1 - Emergency stop";
+CM_ SG_ 1154 Motor1_SafeStop "Motor 1 - Safe stop";
+CM_ SG_ 1154 Motor1_SpeedLimit "Motor 1 - Speed limit";
+CM_ SG_ 1154 Motor1_State "Motor 1 - State";
+CM_ SG_ 1666 Motor2_ActualSpeed "Motor 2 - Actual speed";
+CM_ SG_ 1666 Motor2_ActualRelativeTorque "Motor 2 - Actual torque";
+CM_ SG_ 1666 Motor2_Temperature "Motor 2 - Temperature";
+CM_ SG_ 1666 Inverter2_Temperature "Inverter 2 - Temperature";
+CM_ SG_ 1666 Motor2_ControlMode "Motor 2 - Control mode";
+CM_ SG_ 1666 Motor2_PWM_Output "Motor 2 - PWM output";
+CM_ SG_ 1666 Motor2_ReferenceSpeedTorque "Motor 2 - reference speed/torque";
+CM_ SG_ 1666 Motor2_EmergencyStop "Motor 2 - Emergency stop";
+CM_ SG_ 1666 Motor2_SafeStop "Motor 2 - Safe stop";
+CM_ SG_ 1666 Motor2_SpeedLimit "Motor 2 - Speed limit";
+CM_ SG_ 1666 Motor2_State "Motor 2 - State";
+CM_ SG_ 1698 DriverOuput1Current "Driver Output 1 current";
+CM_ SG_ 1698 DriverOuput2Current "Driver Output 2 current";
+CM_ SG_ 1698 DriverOuput3Current "Driver Output 3 current";
+CM_ SG_ 1698 Motor1_Current "Motor 1 - Current";
+CM_ SG_ 1698 Motor2_Current "Motor 2 - Current";
+CM_ SG_ 513 Request_for_Mains_State "0: Ignored; 
+1: Startup Request; 
+2: Mains Check Request;
+3: Ignored; 
+4: Pre-Charge Request; 
+5: Ignored; 
+6: Power Ready Request;
+7: Alarm Request;
+8: Power Ready Direct Request;
+9: Power Ready External Precharge Request";
+CM_ SG_ 513 Request_for_DigIn1 "Digital Output 1 request";
+CM_ SG_ 513 Request_for_DigIn2 "Digital Output 2 request";
+CM_ SG_ 513 First_SW_Reset_Request "First SW reset request";
+CM_ SG_ 513 Request_for_DrOut4_Vlt_Md "Driver 4 Ouput request in voltage mode";
+CM_ SG_ 513 Request_for_DrOut1_PWMCurrent_Md "Request for DrOut1 in PWM or Current mode
+
+";
+CM_ SG_ 513 Request_for_DrOut2_PWMCurrent_Md "Request for DrOut2 in PWM or Current mode
+";
+CM_ SG_ 513 Request_for_DrOut3_PWMCurrent_Md "Request for DrOut3 in PWM or Current mode
+";
+CM_ SG_ 513 Request_for_DrOut1 "Driver 1 Ouput request in voltage mode";
+CM_ SG_ 513 Request_for_DrOut2 "Driver 2 Ouput request in voltage mode";
+CM_ SG_ 513 Request_for_DrOut3 "Driver 3 Ouput request in voltage mode";
+CM_ SG_ 513 Second_SW_Reset_Request "Second SW reset request";
+CM_ SG_ 769 Motor1_SpeedRef_Lim "Motor 1 - Speed reference/limit";
+CM_ SG_ 769 Motor1_TorqueRef_Lim "Motor 1 - Torque limit/reference";
+CM_ SG_ 769 Motor1_DroopRate "Motor 1 - Droop rate";
+CM_ SG_ 769 Motor1_ControlModeReq "Motor 1 - Ctrl mode request";
+CM_ SG_ 769 Motor1_PWMOutEnableReq "Motor 1 - Pwm out request";
+CM_ SG_ 769 Motor1_RefSpeedTorque_EnableReq "Motor 1 - Ref set request";
+CM_ SG_ 769 Motor1_EmergencyStopReq "Motor 1 - Emg stop request";
+CM_ SG_ 769 Motor1_SafetStopReq "Motor 1 - Sf stop request";
+CM_ SG_ 769 Motor1_SpeedLimitReq "Motor 1 - Speed lim request";
+CM_ SG_ 1025 Motor2_SpeedRef_Lim "Motor 2 - Speed reference/limit";
+CM_ SG_ 1025 Motor2_TorqueRef_Lim "Motor 2 - Torque limit/reference";
+CM_ SG_ 1025 Motor2_DroopRate "Motor 2 - Droop rate";
+CM_ SG_ 1025 Motor2_ControlModeReq "Motor 2 - Ctrl mode request";
+CM_ SG_ 1025 Motor2_PWMOutEnableReq "Motor 2 - Pwm out request";
+CM_ SG_ 1025 Motor2_RefSpeedTorque_EnableReq "Motor 2 - Ref set request";
+CM_ SG_ 1025 Motor2_EmergencyStopReq "Motor 2 - Emg stop requot";
+CM_ SG_ 1025 Motor2_SafetStopReq "Motor 2 - Sf stop requot";
+CM_ SG_ 1025 Motor2_SpeedLimitReq "Motor 2 - Speed lim requot";
+CM_ SG_ 1281 Batt_Chg_Curr_Limit "Battery discharge current limit";
+CM_ SG_ 1281 Batt_Dischg_Curr_Limit "Battery charge current limit";
+CM_ SG_ 0 Wakeup "Wake-up (CanOpen)";
+CM_ SG_ 1793 HB "Inverter heartbeat";
+BA_DEF_ BO_  "VFrameFormat" ENUM  "StandardCAN","ExtendedCAN","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","reserved","StandardCAN_FD","ExtendedCAN_FD";
+BA_DEF_  "BusType" STRING ;
+BA_DEF_ BO_  "CANFD_BRS" ENUM  "0","1";
+BA_DEF_DEF_  "VFrameFormat" "StandardCAN";
+BA_DEF_DEF_  "BusType" "";
+BA_DEF_DEF_  "CANFD_BRS" "0";
+BA_ "BusType" "CAN FD";
+BA_ "VFrameFormat" BO_ 386 0;
+BA_ "VFrameFormat" BO_ 642 0;
+BA_ "VFrameFormat" BO_ 898 0;
+BA_ "VFrameFormat" BO_ 1154 0;
+BA_ "VFrameFormat" BO_ 1666 0;
+BA_ "VFrameFormat" BO_ 1698 0;
+BA_ "VFrameFormat" BO_ 513 0;
+BA_ "VFrameFormat" BO_ 769 0;
+BA_ "VFrameFormat" BO_ 1025 0;
+BA_ "VFrameFormat" BO_ 1281 0;
+BA_ "VFrameFormat" BO_ 0 0;
+BA_ "VFrameFormat" BO_ 1793 0;
+VAL_ 386 MainsState 0 "Unknown" 1 "Startup" 2 "MainsCheck" 3 "MainsOK" 4 "Precharging" 5 "PrechargeDone" 6 "PowerReady" 7 "Alarmed" 8 "PoweReadyDirectReq" 9 "PowerReadyExternalPrechargeReq" ;
+VAL_ 898 Fault_Level 0 "Ready" 1 "Blocking" 2 "Stopping" 3 "Limiting" 4 "Warning" ;
+VAL_ 1154 Motor1_ControlMode 0 "None" 1 "Speed Ctrl" 2 "Torque Ctrl" ;
+VAL_ 1154 Motor1_State 0 "Not Defined" 1 "PWMOff" 2 "Fluxed" 3 "Normal" 4 "EmStop" 5 "SafeStop" 6 "SpeedLimit" ;
+VAL_ 1666 Motor2_ControlMode 0 "None" 1 "Speed Ctrl" 2 "Torque Ctrl" ;
+VAL_ 1666 Motor2_State 0 "NotDefined" 1 "PWMOff" 2 "Fluxed" 3 "Normal" 4 "EmStop" 5 "Safestop" 6 "SpeedLimit" ;
+VAL_ 513 Request_for_Mains_State 0 "Ignored" 1 "StartupReq" 2 "MainsCheckReq" 3 "Ignored" 4 "PrechargeReq" 5 "Ignored" 6 "PowerReadyReq" 7 "AlarmReq" 8 "PowerReadyDirectReq" 9 "PowerReadyExtPrechargeReq" ;
+VAL_ 769 Motor1_ControlModeReq 0 "None" 1 "Speed Ctrl" 2 "Torque Ctrl" ;
+

@@ -1,0 +1,7 @@
+{
+  "name": "dana_common",
+  "version": "0.1.0",
+  "description": "Hardware-independent safety, mixer, state, and slew logic for the DANA mower.",
+  "frameworks": "*",
+  "platforms": "*"
+}

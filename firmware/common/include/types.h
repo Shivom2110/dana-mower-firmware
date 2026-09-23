@@ -16,6 +16,7 @@ struct InputSnapshot {
   // Operator/safety inputs from the GIGA wiring diagram.
   bool ignitionOn = false;
   bool estopPressed = true;        // true => emergency stop
+  bool deckSwitchOn = false;       // operator request for the blade motors
   bool canNetworkHealthy = false;  // true only after all required TM4s report healthy
 };
 

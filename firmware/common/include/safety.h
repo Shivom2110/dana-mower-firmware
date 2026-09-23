@@ -2,9 +2,10 @@
 #include "types.h"
 
 struct SafetyStatus {
-  bool mustFault = false;     // if true => force FAULT state now
-  bool canEnableDrive = false; // if true => okay to enable motors/brakes release
-  bool faultCleared = false;  // estop released + conditions okay
+  bool mustFault = false;      // if true => force FAULT state now
+  bool canEnableDrive = false; // okay to ENTER drive: also needs neutral controls, deck off
+  bool driveAllowed = false;   // okay to STAY in drive
+  bool faultCleared = false;   // estop released + conditions okay
 };
 
 class SafetyManager {

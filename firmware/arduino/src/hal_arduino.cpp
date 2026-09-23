@@ -17,6 +17,20 @@ bool readConditionedInput(uint8_t pin, bool activeHigh) {
   const bool high = digitalRead(pin) == HIGH;
   return activeHigh ? high : !high;
 }
+
+int16_t toRpm(float norm, int16_t maxRpm, int8_t direction) {
+  return (int16_t)lroundf(clamp(norm, -1.0f, 1.0f) * maxRpm * direction);
+}
+
+const char* phaseName(Tm4Inverter::Phase p) {
+  switch (p) {
+    case Tm4Inverter::Phase::OFF: return "OFF";
+    case Tm4Inverter::Phase::PWM_REQUESTED: return "PWM_REQ";
+    case Tm4Inverter::Phase::RUNNING: return "RUN";
+    case Tm4Inverter::Phase::STOPPING: return "STOPPING";
+  }
+  return "?";
+}
 }
 
 void hal_init() {
@@ -28,42 +42,105 @@ void hal_init() {
   // because it could conceal a wiring or conditioning-circuit fault.
   pinMode(PIN_IGNITION, INPUT);
   pinMode(PIN_ESTOP, INPUT);
+  pinMode(PIN_DECK_SWITCH, INPUT);
 
-  // CAN transport starts fail-closed until its Dana protocol configuration is
-  // completed. Therefore boot cannot enable torque.
-  tm4.begin();
+  // RPDOs stream from boot with every motor OFF (RPDO2 all zero), like the
+  // laptop scripts; the inverters fault if RPDOs stop for 100 ms.
+  if (!tm4.begin(millis())) {
+    Serial.println("CAN bus failed to start at 250 kbit/s.");
+  }
+}
+
+void hal_service(uint32_t nowMs) {
+  tm4.update(nowMs);
 }
 
 InputSnapshot hal_readInputs() {
-  tm4.update(millis());
-
   InputSnapshot in;
   in.throttleNorm = normalizeJoystick(analogRead(PIN_JOY_THROTTLE));
   in.steeringNorm = normalizeJoystick(analogRead(PIN_JOY_STEERING));
   in.ignitionOn = readConditionedInput(PIN_IGNITION, IGNITION_ACTIVE_HIGH);
   in.estopPressed = readConditionedInput(PIN_ESTOP, ESTOP_ACTIVE_LOW);
+  in.deckSwitchOn = readConditionedInput(PIN_DECK_SWITCH, DECK_SWITCH_ACTIVE_HIGH);
   in.canNetworkHealthy = tm4.healthy();
+
+  // Power Ready (contactor closed) only with ignition on and E-stop released;
+  // otherwise request a return to Startup.
+  tm4.setPowerRequest(in.ignitionOn && !in.estopPressed);
   return in;
 }
 
-void hal_setMotorEnable(bool enable) {
+void hal_setDrive(bool enable, float leftNorm, float rightNorm, bool deckOn) {
   // Enable is a CAN protocol action; never infer a raw GPIO safety output.
-  if (!enable) tm4.sendZeroTorque();
+  for (uint8_t k = 0; k < tm4.count(); k++) {
+    Tm4Inverter& inv = tm4.inverter(k);
+    const InverterConfig& cfg = inv.config();
+    switch (cfg.role) {
+      case InverterRole::DECK:
+        inv.request(enable && deckOn, toRpm(1.0f, TM4_DECK_RPM, cfg.direction));
+        break;
+      case InverterRole::DRIVE_LEFT:
+        inv.request(enable, toRpm(leftNorm, TM4_DRIVE_MAX_RPM, cfg.direction));
+        break;
+      case InverterRole::DRIVE_RIGHT:
+        inv.request(enable, toRpm(rightNorm, TM4_DRIVE_MAX_RPM, cfg.direction));
+        break;
+    }
+  }
+}
+
+void hal_forceMotorsOff() {
+  for (uint8_t k = 0; k < tm4.count(); k++) tm4.inverter(k).forceOff();
 }
 
 void hal_setBrake(bool apply) {
   (void)apply;
-  // No brake actuator is shown in the supplied diagram. Add a protected,
-  // documented output only after the vehicle braking circuit is specified.
-}
-
-void hal_setMotorOutputs(float leftNorm, float rightNorm) {
-  if (!tm4.sendWheelCommands(leftNorm, rightNorm)) {
-    tm4.sendZeroTorque();
-  }
+  // The motor safe brake is driven by each inverter (Driver Out 2, "Safe Brake
+  // Mot1" in SmartView), not by the GIGA.
 }
 
 void hal_setStatusLED(SystemState state) {
   (void)state;
   // Status LED wiring is not present in the diagram.
+}
+
+void hal_printStatus(SystemState state) {
+  static const char* const names[] = {"SAFE_IDLE", "MANUAL", "AUTO", "DOCKING", "FAULT"};
+  const uint8_t s = (uint8_t)state;
+  Serial.print("state=");
+  Serial.print(s < 5 ? names[s] : "?");
+  Serial.print(" can_healthy=");
+  Serial.print(tm4.healthy());
+  Serial.print(" rx=");
+  Serial.print(tm4.rxCount());
+  Serial.print(" tx=");
+  Serial.print(tm4.txCount());
+  Serial.print(" tx_err=");
+  Serial.println(tm4.txErrors());
+
+  const uint32_t now = millis();
+  for (uint8_t k = 0; k < tm4.count(); k++) {
+    Tm4Inverter& inv = tm4.inverter(k);
+    if (!inv.config().present) continue;
+    const tm4::Status& st = inv.status();
+    Serial.print("  ");
+    Serial.print(inv.config().name);
+    Serial.print(": healthy=");
+    Serial.print(inv.healthy(now));
+    Serial.print(" phase=");
+    Serial.print(phaseName(inv.phase()));
+    if (inv.pwmTimedOut()) Serial.print("(PWM confirm timeout)");
+    Serial.print(" mains=");
+    Serial.print(st.mainsState);
+    Serial.print(" fault=");
+    Serial.print(st.faultCode);
+    Serial.print(" level=");
+    Serial.print(st.faultLevel);
+    Serial.print(" pwm=");
+    Serial.print(st.pwmOutput);
+    Serial.print(" rpm=");
+    Serial.print(st.actualRpm);
+    Serial.print(" dc=");
+    Serial.println(st.dcBusVoltage, 1);
+  }
 }
