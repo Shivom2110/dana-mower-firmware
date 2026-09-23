@@ -82,6 +82,45 @@ them with the bench tool, then set `present = true` and check each motor's
   Ready sequence (2 → 4 → 6). The manual warns that request 8 can cause
   pre-charge faults with more than one controller.
 
+### Motor brake
+
+The spring-applied brake on each motor is controlled only by its inverter,
+under SmartView > Motor/Control1 > Safety Functions > Safe Brake. The GIGA
+cannot command it. INV1 is configured as follows:
+
+- **Output:** Driver Output 2 (K1-27) at 1000 Hz. This is a low-side PWM
+  output, so the coil's positive side must go to **Coil Return (K1-25)**,
+  which carries battery/KEY voltage (48 V).
+- **Voltage:** Pull-In 50% (24 V) for 100 ms, then Hold 30% (14 V). SmartView
+  calculates these as a percentage of battery voltage.
+- **Timing:** opening delay 100 ms, closing delay 100 ms, closing timeout 0
+  (disabled).
+
+The inverter opens the brake only when:
+
+- PWM is enabled;
+- the reference is enabled;
+- a non-zero speed is requested.
+
+Streaming alone (`V2_CAN_Test.py`, or bench command `s`) never releases it.
+
+If the brake stays on with a speed command active:
+
+1. **Clear any Blocking fault first.** With a Blocking fault, PWM never
+   enables. SmartView on 2026-09-16 showed ENCODER1 FAULT [30] active. The
+   encoder's Sin input also sat at about 4.0 V with almost no swing, where a
+   sin/cos signal would normally center near 2.5 V. Check the encoder supply
+   and wiring.
+2. **Check the coil wiring.** If the coil's positive side is on a separate
+   24 V supply instead of Coil Return, 50%/30% PWM gives only about 12 V/7 V
+   and the brake will not lift.
+3. **Isolate brake from inverter.** Apply 24 V directly to the coil from a
+   bench supply. If the wheel then turns freely, the brake is fine and the
+   problem is in the inverter output or its configuration.
+4. **Set a Brake Closing Timeout.** The manual strongly recommends it.
+   Consider raising Pull-In Time and the opening delay to the manual's
+   suggested 200 ms.
+
 ## Safety behaviour
 
 Drive (`MANUAL`) engages only when all of these hold:

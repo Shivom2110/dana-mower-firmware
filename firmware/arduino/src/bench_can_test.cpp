@@ -15,7 +15,7 @@
 #include "tm4_can.h"
 
 namespace {
-Tm4Can tm4;
+Tm4Can tm4Bus;
 bool verbose = false;
 uint32_t lastReportMs = 0;
 uint32_t lastRxCount = 0;
@@ -34,20 +34,20 @@ void printRx(uint32_t id, const uint8_t* data, uint8_t len) {
 }
 
 void requestAll(bool run, int16_t rpm) {
-  for (uint8_t k = 0; k < tm4.count(); k++) tm4.inverter(k).request(run, rpm);
+  for (uint8_t k = 0; k < tm4Bus.count(); k++) tm4Bus.inverter(k).request(run, rpm);
 }
 
 void handleCommand(const char* cmd, uint32_t now) {
   if (strcmp(cmd, "s") == 0) {
-    tm4.setPowerRequest(true);
-    tm4.setTransmit(true, now);
-    Serial.println(tm4.transmitting() ? "RPDO1-RPDO4 streaming every 10 ms, motors OFF."
+    tm4Bus.setPowerRequest(true);
+    tm4Bus.setTransmit(true, now);
+    Serial.println(tm4Bus.transmitting() ? "RPDO1-RPDO4 streaming every 10 ms, motors OFF."
                                       : "CAN not started.");
   } else if (strcmp(cmd, "x") == 0) {
     requestAll(false, 0);
     Serial.println("Motor stop requested (0 rpm hold, then PWM off).");
   } else if (strcmp(cmd, "q") == 0) {
-    tm4.setTransmit(false, now);
+    tm4Bus.setTransmit(false, now);
     Serial.println("Streaming stopped; inverters will time out their RPDOs.");
   } else if (strcmp(cmd, "v") == 0) {
     verbose = !verbose;
@@ -56,7 +56,7 @@ void handleCommand(const char* cmd, uint32_t now) {
     const long rpm = strtol(cmd, &end, 10);
     if (end == cmd || *end != '\0' || rpm < -10000 || rpm > 10000) {
       Serial.println("Commands: s, <rpm>, x, q, v");
-    } else if (!tm4.transmitting()) {
+    } else if (!tm4Bus.transmitting()) {
       Serial.println("Start streaming with 's' first.");
     } else {
       requestAll(true, (int16_t)rpm);
@@ -68,10 +68,10 @@ void handleCommand(const char* cmd, uint32_t now) {
 }
 
 void report(uint32_t now) {
-  if (tm4.rxCount() == lastRxCount) Serial.println("No CAN message received.");
-  lastRxCount = tm4.rxCount();
-  for (uint8_t k = 0; k < tm4.count(); k++) {
-    Tm4Inverter& inv = tm4.inverter(k);
+  if (tm4Bus.rxCount() == lastRxCount) Serial.println("No CAN message received.");
+  lastRxCount = tm4Bus.rxCount();
+  for (uint8_t k = 0; k < tm4Bus.count(); k++) {
+    Tm4Inverter& inv = tm4Bus.inverter(k);
     if (!inv.config().present) continue;
     const tm4::Status& st = inv.status();
     Serial.print(inv.config().name);
@@ -88,12 +88,15 @@ void report(uint32_t now) {
     Serial.print(st.faultLevel);
     Serial.print(" pwm=");
     Serial.print(st.pwmOutput);
+    // 1 PWMOff, 2 Fluxed, 3 Normal, 4 EmStop, 5 SafeStop, 6 SpeedLimit
+    Serial.print(" mstate=");
+    Serial.print(st.motorState);
     Serial.print(" rpm=");
     Serial.print(st.actualRpm);
     Serial.print(" dc=");
     Serial.print(st.dcBusVoltage, 1);
     Serial.print(" tx_err=");
-    Serial.println(tm4.txErrors());
+    Serial.println(tm4Bus.txErrors());
   }
 }
 }
@@ -103,17 +106,17 @@ void setup() {
   while (!Serial && millis() < 3000) {}
 
   Serial.println("Connecting to CAN...");
-  const bool started = tm4.begin(millis());
+  const bool started = tm4Bus.begin(millis());
   // begin() streams by default (controller behaviour); the bench waits for 's'.
-  tm4.setTransmit(false, millis());
-  tm4.onReceive(printRx);
+  tm4Bus.setTransmit(false, millis());
+  tm4Bus.onReceive(printRx);
   Serial.println(started ? "Connected: FDCAN2 @ 250000 bit/s" : "CAN not started.");
   Serial.println("Commands: s (start RPDOs), <rpm>, x (stop motor), q (stop all), v (raw RX)");
 }
 
 void loop() {
   const uint32_t now = millis();
-  tm4.update(now);
+  tm4Bus.update(now);
 
   while (Serial.available()) {
     const char c = (char)Serial.read();

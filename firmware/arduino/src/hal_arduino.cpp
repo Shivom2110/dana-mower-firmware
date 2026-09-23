@@ -5,7 +5,7 @@
 #include "tm4_can.h"
 
 namespace {
-Tm4Can tm4;
+Tm4Can tm4Bus;
 
 float normalizeJoystick(int raw) {
   const int centered = raw - JOY_ADC_CENTER;
@@ -46,13 +46,13 @@ void hal_init() {
 
   // RPDOs stream from boot with every motor OFF (RPDO2 all zero), like the
   // laptop scripts; the inverters fault if RPDOs stop for 100 ms.
-  if (!tm4.begin(millis())) {
+  if (!tm4Bus.begin(millis())) {
     Serial.println("CAN bus failed to start at 250 kbit/s.");
   }
 }
 
 void hal_service(uint32_t nowMs) {
-  tm4.update(nowMs);
+  tm4Bus.update(nowMs);
 }
 
 InputSnapshot hal_readInputs() {
@@ -62,18 +62,18 @@ InputSnapshot hal_readInputs() {
   in.ignitionOn = readConditionedInput(PIN_IGNITION, IGNITION_ACTIVE_HIGH);
   in.estopPressed = readConditionedInput(PIN_ESTOP, ESTOP_ACTIVE_LOW);
   in.deckSwitchOn = readConditionedInput(PIN_DECK_SWITCH, DECK_SWITCH_ACTIVE_HIGH);
-  in.canNetworkHealthy = tm4.healthy();
+  in.canNetworkHealthy = tm4Bus.healthy();
 
   // Power Ready (contactor closed) only with ignition on and E-stop released;
   // otherwise request a return to Startup.
-  tm4.setPowerRequest(in.ignitionOn && !in.estopPressed);
+  tm4Bus.setPowerRequest(in.ignitionOn && !in.estopPressed);
   return in;
 }
 
 void hal_setDrive(bool enable, float leftNorm, float rightNorm, bool deckOn) {
   // Enable is a CAN protocol action; never infer a raw GPIO safety output.
-  for (uint8_t k = 0; k < tm4.count(); k++) {
-    Tm4Inverter& inv = tm4.inverter(k);
+  for (uint8_t k = 0; k < tm4Bus.count(); k++) {
+    Tm4Inverter& inv = tm4Bus.inverter(k);
     const InverterConfig& cfg = inv.config();
     switch (cfg.role) {
       case InverterRole::DECK:
@@ -90,7 +90,7 @@ void hal_setDrive(bool enable, float leftNorm, float rightNorm, bool deckOn) {
 }
 
 void hal_forceMotorsOff() {
-  for (uint8_t k = 0; k < tm4.count(); k++) tm4.inverter(k).forceOff();
+  for (uint8_t k = 0; k < tm4Bus.count(); k++) tm4Bus.inverter(k).forceOff();
 }
 
 void hal_setBrake(bool apply) {
@@ -110,17 +110,17 @@ void hal_printStatus(SystemState state) {
   Serial.print("state=");
   Serial.print(s < 5 ? names[s] : "?");
   Serial.print(" can_healthy=");
-  Serial.print(tm4.healthy());
+  Serial.print(tm4Bus.healthy());
   Serial.print(" rx=");
-  Serial.print(tm4.rxCount());
+  Serial.print(tm4Bus.rxCount());
   Serial.print(" tx=");
-  Serial.print(tm4.txCount());
+  Serial.print(tm4Bus.txCount());
   Serial.print(" tx_err=");
-  Serial.println(tm4.txErrors());
+  Serial.println(tm4Bus.txErrors());
 
   const uint32_t now = millis();
-  for (uint8_t k = 0; k < tm4.count(); k++) {
-    Tm4Inverter& inv = tm4.inverter(k);
+  for (uint8_t k = 0; k < tm4Bus.count(); k++) {
+    Tm4Inverter& inv = tm4Bus.inverter(k);
     if (!inv.config().present) continue;
     const tm4::Status& st = inv.status();
     Serial.print("  ");
