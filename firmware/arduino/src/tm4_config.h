@@ -22,18 +22,19 @@ static const InverterConfig TM4_INVERTERS[] = {
   // Configured and bench-tested (SmartView 2026-09-16): 250K, Slave ID 2,
   // full autonomous startup, "Node Id added to PDO Id" off, TPDOs every
   // 100 ms, RPDO timeout 100 ms.
-  {"INV1 deck", InverterRole::DECK, true, 2,
+  {"INV1 deck", InverterRole::DECK, false, 2,
    {0x201, 0x301, 0x401, 0x501}, 0x182, 0x382, 0x482, +1},
 
-  // Not configured yet. Each inverter on the shared bus needs unique IDs for
-  // all its PDOs (TPDO1..6 and RPDO1..4) and a unique Slave ID. Program these
-  // suggested values in SmartView, verify, then set present = true.
+  // Not configured yet.
   {"INV2 deck", InverterRole::DECK, false, 3,
    {0x202, 0x302, 0x402, 0x502}, 0x183, 0x383, 0x483, +1},
   {"INV3 drive L", InverterRole::DRIVE_LEFT, false, 4,
    {0x203, 0x303, 0x403, 0x503}, 0x184, 0x384, 0x484, +1},
-  {"INV4 drive R", InverterRole::DRIVE_RIGHT, false, 5,
-   {0x204, 0x304, 0x404, 0x504}, 0x185, 0x385, 0x485, +1},
+
+  // Confirmed in SmartView (Inverter_4_Wheel.clon): Slave ID 5, 250K,
+  // Node Id Added To PDO Id = OFF. PDO IDs verified from SmartView PDOs tab.
+  {"INV4 drive R", InverterRole::DRIVE_RIGHT, true, 5,
+   {0x205, 0x305, 0x405, 0x505}, 0x185, 0x385, 0x485, +1},
 };
 static constexpr uint8_t TM4_INVERTER_COUNT =
     sizeof(TM4_INVERTERS) / sizeof(TM4_INVERTERS[0]);
