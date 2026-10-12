@@ -7,10 +7,10 @@
 namespace {
 Tm4Can tm4Bus;
 
-float normalizeJoystick(int raw) {
-  const int centered = raw - JOY_ADC_CENTER;
-  if (centered > -JOY_ADC_DEADBAND && centered < JOY_ADC_DEADBAND) return 0.0f;
-  return clamp((float)centered / (float)JOY_ADC_MAX, -1.0f, 1.0f);
+float normalizeHandle(int raw) {
+  const int centered = raw - HANDLE_ADC_CENTER;
+  if (centered > -HANDLE_ADC_DEADBAND && centered < HANDLE_ADC_DEADBAND) return 0.0f;
+  return clamp((float)centered / (float)HANDLE_ADC_MAX, -1.0f, 1.0f);
 }
 
 bool readConditionedInput(uint8_t pin, bool activeHigh) {
@@ -34,9 +34,9 @@ const char* phaseName(Tm4Inverter::Phase p) {
 }
 
 void hal_init() {
-  analogReadResolution(JOY_ADC_BITS);
-  pinMode(PIN_JOY_THROTTLE, INPUT);
-  pinMode(PIN_JOY_STEERING, INPUT);
+  analogReadResolution(HANDLE_ADC_BITS);
+  pinMode(PIN_HANDLE_LEFT,  INPUT);
+  pinMode(PIN_HANDLE_RIGHT, INPUT);
 
   // Input circuits supply a defined 3.3 V level; no internal pull-up is used
   // because it could conceal a wiring or conditioning-circuit fault.
@@ -53,12 +53,18 @@ void hal_init() {
 
 void hal_service(uint32_t nowMs) {
   tm4Bus.update(nowMs);
+  static uint32_t lastPotPrint = 0;
+  if (nowMs - lastPotPrint >= 500) {
+    lastPotPrint = nowMs;
+    Serial.print("L="); Serial.print(analogRead(PIN_HANDLE_LEFT));
+    Serial.print("  R="); Serial.println(analogRead(PIN_HANDLE_RIGHT));
+  }
 }
 
 InputSnapshot hal_readInputs() {
   InputSnapshot in;
-  in.throttleNorm = normalizeJoystick(analogRead(PIN_JOY_THROTTLE));
-  in.steeringNorm = normalizeJoystick(analogRead(PIN_JOY_STEERING));
+  in.leftHandleNorm  = normalizeHandle(analogRead(PIN_HANDLE_LEFT));
+  in.rightHandleNorm = normalizeHandle(analogRead(PIN_HANDLE_RIGHT));
   in.ignitionOn = readConditionedInput(PIN_IGNITION, IGNITION_ACTIVE_HIGH);
   in.estopPressed = readConditionedInput(PIN_ESTOP, ESTOP_ACTIVE_LOW);
   in.deckSwitchOn = readConditionedInput(PIN_DECK_SWITCH, DECK_SWITCH_ACTIVE_HIGH);

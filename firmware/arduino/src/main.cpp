@@ -57,7 +57,7 @@ void loop() {
         break;
       }
       hal_setBrake(false);
-      wheels = mixer.mix({in.throttleNorm, in.steeringNorm, true});
+      wheels = mixer.mix({in.leftHandleNorm, in.rightHandleNorm, true});
       wheels.left = leftLimiter.step(wheels.left, dt);
       wheels.right = rightLimiter.step(wheels.right, dt);
       hal_setDrive(true, wheels.left, wheels.right, in.deckSwitchOn);

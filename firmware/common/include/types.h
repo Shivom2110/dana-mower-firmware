@@ -10,8 +10,11 @@ enum class SystemState : uint8_t {
 };
 
 struct InputSnapshot {
-  float throttleNorm = 0.0f;  // -1 back .. +1 forward
-  float steeringNorm = 0.0f;  // -1 left .. +1 right
+  // Skid-steer: each handle maps directly to one drive wheel.
+  // Left handle (A0): -1 = full reverse, 0 = neutral, +1 = full forward.
+  // Right handle (A1): same convention.
+  float leftHandleNorm  = 0.0f;
+  float rightHandleNorm = 0.0f;
 
   // Operator/safety inputs from the GIGA wiring diagram.
   bool ignitionOn = false;
@@ -21,8 +24,8 @@ struct InputSnapshot {
 };
 
 struct DriveCommand {
-  float throttle = 0.0f;   // -1..+1
-  float steering = 0.0f;   // -1..+1
+  float left  = 0.0f;   // -1..+1, left wheel speed
+  float right = 0.0f;   // -1..+1, right wheel speed
   bool  enableDrive = false;
 };
 

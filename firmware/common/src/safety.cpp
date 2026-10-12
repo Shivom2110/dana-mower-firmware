@@ -20,8 +20,8 @@ SafetyStatus SafetyManager::update(const InputSnapshot& in, uint32_t nowMs) {
   const bool canAlive = (_lastAliveMs != 0) && (nowMs - _lastAliveMs <= INPUT_TIMEOUT_MS);
   const bool canLost = (_lastAliveMs != 0) && !canAlive;
   const bool controlsNeutral =
-      (in.throttleNorm > -NEUTRAL_THRESHOLD && in.throttleNorm < NEUTRAL_THRESHOLD) &&
-      (in.steeringNorm > -NEUTRAL_THRESHOLD && in.steeringNorm < NEUTRAL_THRESHOLD);
+      (in.leftHandleNorm  > -NEUTRAL_THRESHOLD && in.leftHandleNorm  < NEUTRAL_THRESHOLD) &&
+      (in.rightHandleNorm > -NEUTRAL_THRESHOLD && in.rightHandleNorm < NEUTRAL_THRESHOLD);
   // Blades must not start the moment drive engages.
   const bool readyToEngage = controlsNeutral && !in.deckSwitchOn;
 
