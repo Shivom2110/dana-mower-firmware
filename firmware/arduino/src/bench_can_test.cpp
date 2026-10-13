@@ -1,23 +1,22 @@
-// Bench-only GIGA replacement for V2_CAN_Test.py + V2_Motor_Control.py
-// (env giga_r1_m7_can_bench). CAN only: ignores ignition, deck switch,
-// and E-stop. The physical E-stop must still remove inverter power.
+// Bench test env (giga_r1_m7_can_bench). CAN only — no ignition, deck switch,
+// or E-stop logic. Physical E-stop must still cut inverter power.
 //
-// Serial monitor (115200), one command per line:
+// Serial commands (115200 baud):
 //   s        start RPDO1-4 streaming, motors OFF
-//   p        toggle pot-controlled drive (left handle → right wheel, max 100 rpm)
+//   p        toggle pot-controlled drive (left handle → right wheel)
 //   <rpm>    manually command rpm on all present inverters
-//   x        stop motors (0 rpm hold, then PWM off; streaming continues)
-//   q        stop motors and stop streaming
+//   x        stop motors (streaming continues)
+//   q        stop motors and streaming
 //   v        toggle raw RX printing
+//   d        toggle fast pot ADC reading (10 Hz) for calibration
 //   l        loopback self-test (disconnect from inverter first)
 #include <Arduino.h>
 #include <Arduino_CAN.h>
 
 #include "tm4_can.h"
 
-// Internal loopback test: sets FDCAN into loopback mode via STM32 registers.
-// In this mode the peripheral ACKs its own frames; no external bus needed.
-// Works regardless of CANH/CANL wiring state.
+// Loopback test via STM32 FDCAN registers — ACKs its own frames internally,
+// bypasses the transceiver. PASS confirms FDCAN peripheral, not physical wiring.
 namespace {
 void setFdcanLoopback(bool enable) {
 #if defined(FDCAN2)
@@ -27,7 +26,6 @@ void setFdcanLoopback(bool enable) {
 #else
   (void)enable; return;
 #endif
-  // Enter init mode so config registers are writable
   fd->CCCR |= 0x01u;                          // INIT
   const uint32_t t0 = millis();
   while (!(fd->CCCR & 0x01u) && millis()-t0 < 10) {}
@@ -47,9 +45,7 @@ void setFdcanLoopback(bool enable) {
 bool runLoopbackTest() {
   setFdcanLoopback(true);
   delay(5);
-  // Drain any stale RX
   while (CAN.available()) CAN.read();
-  // Send a known frame
   const uint8_t payload[8] = {0xDE,0xAD,0xBE,0xEF,0x01,0x02,0x03,0x04};
   CAN.write(CanMsg(CanStandardId(0x123), 8, payload));
   const uint32_t t = millis();
@@ -77,25 +73,22 @@ uint32_t lastRxCount   = 0;
 char line[16];
 uint8_t lineLen = 0;
 
-// Fixed calibration from measured handle travel (10-bit ADC, bench env).
-// Forward = lower ADC; reverse = higher ADC.
-// Resting range of handle: ~29-41. Deadband covers full rest range so the
-// motor stays off until the handle is deliberately pushed.
-static constexpr int POT_NEUTRAL   = 35;   // center of handle resting range
-static constexpr int POT_FWD_RANGE = 12;   // counts from neutral to full-forward hard stop
-static constexpr int POT_REV_RANGE = 10;   // counts from neutral to full-reverse hard stop
-static constexpr int POT_DEADBAND  = 10;   // engage threshold; 8-avg of rest (~33) clears it
-static constexpr int16_t POT_MAX_RPM = 30; // safe first-test ceiling; raise after wheel confirmed spinning
+// Handle pot calibration (10-bit ADC on A0, bench env).
+// Forward push = lower ADC; reverse push = higher ADC.
+// Use 'd' command to measure actual values before changing these.
+static constexpr int POT_NEUTRAL   = 35;   // ADC at handle rest/center
+static constexpr int POT_FWD_RANGE = 12;   // counts from neutral to full-forward
+static constexpr int POT_REV_RANGE = 10;   // counts from neutral to full-reverse
+static constexpr int POT_DEADBAND  = 10;   // dead zone each side of neutral
+static constexpr int16_t POT_MAX_RPM = 30; // RPM ceiling — raise after confirming spin
 
-// `current` is lastPotRpm — used for hysteresis: once running, a wider zone
-// keeps the motor on so boundary noise cannot toggle it off immediately.
+// Hysteresis: once running, the stop threshold is 3 counts wider than the
+// engage threshold, so boundary noise cannot toggle the motor off.
 int16_t potToRpm(int raw, int16_t current) {
-  const int fwdOn  = POT_NEUTRAL - POT_DEADBAND;      // engage  forward:  raw < 25
-  const int fwdOff = POT_NEUTRAL - POT_DEADBAND + 3;  // disengage fwd:   raw > 27
-  const int revOn  = POT_NEUTRAL + POT_DEADBAND;      // engage  reverse:  raw > 45
-  const int revOff = POT_NEUTRAL + POT_DEADBAND - 3;  // disengage rev:   raw < 43
-  const int fwdThresh = (current > 0) ? fwdOff : fwdOn;
-  const int revThresh = (current < 0) ? revOff : revOn;
+  const int fwdThresh = (current > 0) ? (POT_NEUTRAL - POT_DEADBAND + 3)
+                                       : (POT_NEUTRAL - POT_DEADBAND);
+  const int revThresh = (current < 0) ? (POT_NEUTRAL + POT_DEADBAND - 3)
+                                       : (POT_NEUTRAL + POT_DEADBAND);
   if (raw < fwdThresh) {
     const int d = POT_NEUTRAL - raw;
     return (int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, POT_FWD_RANGE));
@@ -215,7 +208,7 @@ void report(uint32_t now) {
     Serial.println(tm4Bus.txErrors());
   }
 
-  // Handle position display (4-sample average to reduce noise)
+  // Handle position (4-sample average)
   int potSum = 0;
   for (int i = 0; i < 4; i++) potSum += analogRead(A0);
   const int raw = potSum >> 2;
@@ -260,7 +253,7 @@ void loop() {
   const uint32_t now = millis();
   tm4Bus.update(now);
 
-  // Pot-controlled drive: 8-sample average + hysteresis to prevent boundary bounce
+  // Pot-controlled drive: 8-sample average + hysteresis
   if (potControl && tm4Bus.transmitting()) {
     int potSum = 0;
     for (int i = 0; i < 8; i++) potSum += analogRead(A0);

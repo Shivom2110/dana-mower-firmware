@@ -51,7 +51,6 @@ void Tm4Inverter::update(uint32_t nowMs) {
       break;
 
     case Phase::STOPPING:
-      // Software delay only; not proof the rotor has stopped.
       if (nowMs - _phaseMs >= TM4_STOP_HOLD_MS) _phase = Phase::OFF;
       break;
   }
@@ -78,7 +77,7 @@ void Tm4Inverter::encodeRpdo(uint8_t index, uint8_t mainsRequest, uint8_t out[8]
       tm4::encodeRpdo1(out, mainsRequest);
       return;
     case 1: {
-      tm4::MotorRequest m;  // OFF: all zero, as in debugCAN_python_can_v1.py cell 13
+      tm4::MotorRequest m;
       if (_phase != Phase::OFF) {
         m.controlMode = tm4::CONTROL_SPEED;
         m.pwmEnable = true;
@@ -113,12 +112,11 @@ bool Tm4Inverter::healthy(uint32_t nowMs) const {
 bool Tm4Can::begin(uint32_t nowMs) {
   for (uint8_t i = 0; i < TM4_INVERTER_COUNT; i++) _inv[i].init(&TM4_INVERTERS[i]);
   _healthy = false;
-  // The GIGA `CAN` object is FDCAN2 on the CANRX/CANTX header (D93/D94),
-  // wired to the isolated transceiver. SmartView: Baud Rate 250K.
+  // GIGA CAN object = FDCAN2 on CANRX/CANTX header (D93/D94). SmartView: 250K.
   _busStarted = CAN.begin(CanBitRate::BR_250k);
   if (_busStarted) {
-    // NMT Start Remote Node for each present inverter. Dana inverters auto-start
-    // at power-on, but sending this is correct CANopen behavior. Harmless if ignored.
+    // NMT Start Remote Node (COB-ID 0x000). Inverters auto-start at power-on;
+    // this is harmless and correct CANopen procedure.
     for (uint8_t i = 0; i < TM4_INVERTER_COUNT; i++) {
       if (TM4_INVERTERS[i].present) {
         const uint8_t nmt[2] = {0x01u, TM4_INVERTERS[i].slaveId};
@@ -195,8 +193,8 @@ void Tm4Can::update(uint32_t nowMs) {
   for (uint8_t k = 0; k < TM4_INVERTER_COUNT; k++) _inv[k].update(nowMs);
 
   if (_transmit) {
-    // CANopen SYNC (COB-ID 0x080, 0 bytes) every 10 ms. Required by the Dana
-    // inverter — without it Fault 74 (CO Synchro Lost) latches and blocks PWM.
+    // CANopen SYNC (COB-ID 0x080, 0 bytes) every 10 ms.
+    // Without SYNC the inverter raises Fault 74 (CO Synchro Lost) and blocks PWM.
     if ((int32_t)(nowMs - _syncNextMs) >= 0) {
       sendRaw(0x080, nullptr, 0);
       _syncNextMs = nowMs + TM4_SYNC_PERIOD_MS;
@@ -213,7 +211,6 @@ void Tm4Can::update(uint32_t nowMs) {
         inv.encodeRpdo(i, mains, data);
         send(inv.config().rpdo[i], data);
         inv.nextTxMs[i] += TM4_RPDO_PERIOD_MS;
-        // After a stall, resume the period from now instead of bursting.
         if ((int32_t)(nowMs - inv.nextTxMs[i]) >= 0) inv.nextTxMs[i] = nowMs + TM4_RPDO_PERIOD_MS;
       }
     }

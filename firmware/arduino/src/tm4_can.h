@@ -5,21 +5,18 @@
 #include "tm4_config.h"
 #include "tm4_protocol.h"
 
-// One TAU Generic Slave (AC-X1) inverter. Runs the Motor 1 speed-mode
-// sequence from Jens' debugCAN.m / V2_Motor_Control.py:
-//   OFF            RPDO2 all zero
-//   PWM_REQUESTED  speed mode + PWM enable, wait for TPDO4 Motor1_PWM_Output
-//   RUNNING        reference enabled, speed = commanded rpm
-//   STOPPING       0 rpm for TM4_STOP_HOLD_MS, then OFF
+// One TAU Generic Slave AC-X1 inverter. Motor 1 speed-mode state machine:
+//   OFF           → RPDO2 all zero
+//   PWM_REQUESTED → speed mode + PWM enable; waits for TPDO4 pwmOutput confirmation
+//   RUNNING       → reference enabled, speed = commanded rpm
+//   STOPPING      → 0 rpm for TM4_STOP_HOLD_MS, then back to OFF
 class Tm4Inverter {
 public:
   enum class Phase : uint8_t { OFF, PWM_REQUESTED, RUNNING, STOPPING };
 
   void init(const InverterConfig* cfg) { _cfg = cfg; }
-  // Graceful: a dropped request goes through STOPPING.
-  void request(bool run, int16_t rpm);
-  // Immediate: PWM disabled on the next RPDO2.
-  void forceOff();
+  void request(bool run, int16_t rpm);  // graceful: goes through STOPPING
+  void forceOff();                       // immediate: PWM off on next RPDO2
 
   void update(uint32_t nowMs);
   bool handleRx(uint32_t id, const uint8_t* data, uint8_t len, uint32_t nowMs);
@@ -44,19 +41,17 @@ private:
   tm4::Status _status;
 };
 
-// CAN transport for all configured inverters: 250 kbit/s on the GIGA FDCAN2
-// header, RPDO1..RPDO4 streamed to every present inverter.
+// CAN transport for all configured inverters. 250 kbit/s on GIGA FDCAN2
+// (CANRX/CANTX header, D93/D94). Streams RPDO1-4 to every present inverter.
 class Tm4Can {
 public:
   bool begin(uint32_t nowMs);
-  // Call on every loop pass: drains RX, sequences motors, sends due RPDOs.
-  void update(uint32_t nowMs);
+  void update(uint32_t nowMs);  // call every loop: drains RX, steps motors, sends RPDOs
 
-  // Streaming must keep running while inverters are powered; their RPDO
-  // timeout (100 ms) faults them otherwise. Off only for the bench tool.
+  // Keep transmitting while inverters are powered — 100 ms RPDO timeout will fault them.
   void setTransmit(bool on, uint32_t nowMs);
   bool transmitting() const { return _transmit; }
-  // true: RPDO1 requests Power Ready Direct (8); false: return to Startup (1).
+  // true → RPDO1 requests Power Ready Direct (mains=8); false → Startup (mains=1).
   void setPowerRequest(bool on) { _powerRequest = on; }
 
   bool healthy() const { return _healthy; }
