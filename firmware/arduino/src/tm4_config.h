@@ -44,6 +44,9 @@ static constexpr uint8_t TM4_INVERTER_COUNT =
 // streaming at 250 kbit/s, 10 ms is ~85% bus load; use 20 ms there.
 static constexpr uint32_t TM4_RPDO_PERIOD_MS = 10;
 static constexpr uint32_t TM4_RPDO_STAGGER_MS = 1;
+// CANopen SYNC (COB-ID 0x080) must be sent every 10 ms or the inverter raises
+// Fault 74 (CO Synchro Lost). Confirmed by laptop commissioning tests.
+static constexpr uint32_t TM4_SYNC_PERIOD_MS = 10;
 
 // Values from V2_CAN_Test.py / V2_Motor_Control.py / Jens' debugCAN.m.
 // Mains request 8 is the manual's single-controller "Fast Power Ready"

@@ -69,30 +69,40 @@ bool runLoopbackTest() {
 Tm4Can tm4Bus;
 bool verbose    = false;
 bool potControl = false;
+bool fastPot    = false;
 int16_t lastPotRpm = 0;
-uint32_t lastReportMs = 0;
-uint32_t lastRxCount  = 0;
+uint32_t lastReportMs  = 0;
+uint32_t lastFastPotMs = 0;
+uint32_t lastRxCount   = 0;
 char line[16];
 uint8_t lineLen = 0;
 
-// Calibrated from measured left-handle travel (10-bit ADC, bench env).
-// Forward = lower ADC (handle pushed forward → wiper moves toward GND).
-static constexpr int POT_NEUTRAL  = 65;
-static constexpr int POT_FWD_MAX  = 37;   // full-forward limit
-static constexpr int POT_REV_MAX  = 97;   // full-reverse limit
-static constexpr int POT_DEADBAND = 8;
-static constexpr int16_t POT_MAX_RPM = 100;  // safe first-test ceiling
+// Fixed calibration from measured handle travel (10-bit ADC, bench env).
+// Forward = lower ADC; reverse = higher ADC.
+// Resting range of handle: ~29-41. Deadband covers full rest range so the
+// motor stays off until the handle is deliberately pushed.
+static constexpr int POT_NEUTRAL   = 35;   // center of handle resting range
+static constexpr int POT_FWD_RANGE = 12;   // counts from neutral to full-forward hard stop
+static constexpr int POT_REV_RANGE = 10;   // counts from neutral to full-reverse hard stop
+static constexpr int POT_DEADBAND  = 10;   // engage threshold; 8-avg of rest (~33) clears it
+static constexpr int16_t POT_MAX_RPM = 30; // safe first-test ceiling; raise after wheel confirmed spinning
 
-int16_t potToRpm(int raw) {
-  if (raw < POT_NEUTRAL - POT_DEADBAND) {
+// `current` is lastPotRpm — used for hysteresis: once running, a wider zone
+// keeps the motor on so boundary noise cannot toggle it off immediately.
+int16_t potToRpm(int raw, int16_t current) {
+  const int fwdOn  = POT_NEUTRAL - POT_DEADBAND;      // engage  forward:  raw < 25
+  const int fwdOff = POT_NEUTRAL - POT_DEADBAND + 3;  // disengage fwd:   raw > 27
+  const int revOn  = POT_NEUTRAL + POT_DEADBAND;      // engage  reverse:  raw > 45
+  const int revOff = POT_NEUTRAL + POT_DEADBAND - 3;  // disengage rev:   raw < 43
+  const int fwdThresh = (current > 0) ? fwdOff : fwdOn;
+  const int revThresh = (current < 0) ? revOff : revOn;
+  if (raw < fwdThresh) {
     const int d = POT_NEUTRAL - raw;
-    const int r = POT_NEUTRAL - POT_FWD_MAX;   // 28 counts = full forward
-    return (int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, r));
+    return (int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, POT_FWD_RANGE));
   }
-  if (raw > POT_NEUTRAL + POT_DEADBAND) {
+  if (raw > revThresh) {
     const int d = raw - POT_NEUTRAL;
-    const int r = POT_REV_MAX - POT_NEUTRAL;    // 32 counts = full reverse
-    return -(int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, r));
+    return -(int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, POT_REV_RANGE));
   }
   return 0;
 }
@@ -145,6 +155,10 @@ void handleCommand(const char* cmd, uint32_t now) {
     Serial.println("Streaming stopped; inverters will time out their RPDOs.");
   } else if (strcmp(cmd, "v") == 0) {
     verbose = !verbose;
+  } else if (strcmp(cmd, "d") == 0) {
+    fastPot = !fastPot;
+    if (fastPot) Serial.println("Pot debug ON — raw ADC @ 10 Hz. Move handle slowly. 'd' to stop.");
+    else         Serial.println("Pot debug OFF.");
   } else if (strcmp(cmd, "l") == 0) {
     potControl = false;
     tm4Bus.setTransmit(false, now);
@@ -201,16 +215,18 @@ void report(uint32_t now) {
     Serial.println(tm4Bus.txErrors());
   }
 
-  // Handle position display
-  const int raw = analogRead(A0);
+  // Handle position display (4-sample average to reduce noise)
+  int potSum = 0;
+  for (int i = 0; i < 4; i++) potSum += analogRead(A0);
+  const int raw = potSum >> 2;
   const char* dir;
   int pct = 0;
   if (raw < POT_NEUTRAL - POT_DEADBAND) {
     dir = "FORWARD";
-    pct = min(100, (POT_NEUTRAL - raw) * 100 / max(1, POT_NEUTRAL - POT_FWD_MAX));
+    pct = min(100, (POT_NEUTRAL - raw) * 100 / max(1, POT_FWD_RANGE));
   } else if (raw > POT_NEUTRAL + POT_DEADBAND) {
     dir = "REVERSE";
-    pct = min(100, (raw - POT_NEUTRAL) * 100 / max(1, POT_REV_MAX - POT_NEUTRAL));
+    pct = min(100, (raw - POT_NEUTRAL) * 100 / max(1, POT_REV_RANGE));
   } else {
     dir = "NEUTRAL";
   }
@@ -244,13 +260,22 @@ void loop() {
   const uint32_t now = millis();
   tm4Bus.update(now);
 
-  // Pot-controlled drive: update motor command whenever handle position changes
+  // Pot-controlled drive: 8-sample average + hysteresis to prevent boundary bounce
   if (potControl && tm4Bus.transmitting()) {
-    const int16_t rpm = potToRpm(analogRead(A0));
+    int potSum = 0;
+    for (int i = 0; i < 8; i++) potSum += analogRead(A0);
+    const int16_t rpm = potToRpm(potSum >> 3, lastPotRpm);
     if (rpm != lastPotRpm) {
       requestAll(rpm != 0, rpm);
       lastPotRpm = rpm;
     }
+  }
+
+  if (fastPot && now - lastFastPotMs >= 100) {
+    lastFastPotMs = now;
+    int sum = 0;
+    for (int i = 0; i < 4; i++) sum += analogRead(A0);
+    Serial.println(sum >> 2);
   }
 
   while (Serial.available()) {

@@ -116,6 +116,16 @@ bool Tm4Can::begin(uint32_t nowMs) {
   // The GIGA `CAN` object is FDCAN2 on the CANRX/CANTX header (D93/D94),
   // wired to the isolated transceiver. SmartView: Baud Rate 250K.
   _busStarted = CAN.begin(CanBitRate::BR_250k);
+  if (_busStarted) {
+    // NMT Start Remote Node for each present inverter. Dana inverters auto-start
+    // at power-on, but sending this is correct CANopen behavior. Harmless if ignored.
+    for (uint8_t i = 0; i < TM4_INVERTER_COUNT; i++) {
+      if (TM4_INVERTERS[i].present) {
+        const uint8_t nmt[2] = {0x01u, TM4_INVERTERS[i].slaveId};
+        sendRaw(0x000, nmt, 2);
+      }
+    }
+  }
   setTransmit(_busStarted, nowMs);
   return _busStarted;
 }
@@ -123,6 +133,7 @@ bool Tm4Can::begin(uint32_t nowMs) {
 void Tm4Can::setTransmit(bool on, uint32_t nowMs) {
   on = on && _busStarted;
   if (on && !_transmit) {
+    _syncNextMs = nowMs;  // fire first SYNC on the very next update() call
     // Spread every frame of every inverter across the period, 1 ms apart.
     uint8_t slot = 0;
     for (uint8_t k = 0; k < TM4_INVERTER_COUNT; k++) {
@@ -140,6 +151,19 @@ void Tm4Can::setTransmit(bool on, uint32_t nowMs) {
 
 bool Tm4Can::send(uint16_t id, const uint8_t data[8]) {
   const CanMsg msg(CanStandardId(id), 8, data);
+  if (CAN.write(msg) <= 0) {
+    _txErrors++;
+    if (_consecutiveTxErrors < 255) _consecutiveTxErrors++;
+    return false;
+  }
+  _txCount++;
+  _consecutiveTxErrors = 0;
+  return true;
+}
+
+bool Tm4Can::sendRaw(uint16_t id, const uint8_t* data, uint8_t len) {
+  static const uint8_t kEmpty[1] = {};
+  const CanMsg msg(CanStandardId(id), len, data ? data : kEmpty);
   if (CAN.write(msg) <= 0) {
     _txErrors++;
     if (_consecutiveTxErrors < 255) _consecutiveTxErrors++;
@@ -171,6 +195,14 @@ void Tm4Can::update(uint32_t nowMs) {
   for (uint8_t k = 0; k < TM4_INVERTER_COUNT; k++) _inv[k].update(nowMs);
 
   if (_transmit) {
+    // CANopen SYNC (COB-ID 0x080, 0 bytes) every 10 ms. Required by the Dana
+    // inverter — without it Fault 74 (CO Synchro Lost) latches and blocks PWM.
+    if ((int32_t)(nowMs - _syncNextMs) >= 0) {
+      sendRaw(0x080, nullptr, 0);
+      _syncNextMs = nowMs + TM4_SYNC_PERIOD_MS;
+      if ((int32_t)(nowMs - _syncNextMs) >= 0) _syncNextMs = nowMs + TM4_SYNC_PERIOD_MS;
+    }
+
     const uint8_t mains = _powerRequest ? tm4::MAINS_REQ_POWER_READY_DIRECT : tm4::MAINS_REQ_STARTUP;
     for (uint8_t k = 0; k < TM4_INVERTER_COUNT; k++) {
       Tm4Inverter& inv = _inv[k];

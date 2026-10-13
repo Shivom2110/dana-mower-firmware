@@ -72,6 +72,7 @@ public:
 
 private:
   bool send(uint16_t id, const uint8_t data[8]);
+  bool sendRaw(uint16_t id, const uint8_t* data, uint8_t len);
 
   Tm4Inverter _inv[TM4_INVERTER_COUNT];
   bool _busStarted = false;
@@ -82,5 +83,6 @@ private:
   uint32_t _rxCount = 0;
   uint32_t _txCount = 0;
   uint32_t _txErrors = 0;
+  uint32_t _syncNextMs = 0;
   RxCallback _rxCallback = nullptr;
 };
