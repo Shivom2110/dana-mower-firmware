@@ -19,3 +19,6 @@ dist/
 
 # Python
 __pycache__/
+
+# Wi-Fi credentials for the web-control env
+firmware/arduino/src/web_secrets.h

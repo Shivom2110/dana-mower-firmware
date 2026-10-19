@@ -157,6 +157,8 @@ additional safeguard, not its replacement.
   motor sequencing, and health.
 - `firmware/arduino/src/bench_can_test.cpp`: bench replacement for the laptop
   scripts.
+- `firmware/arduino/src/web_control.cpp`, `web_config.h`: Wi-Fi HTTP control
+  for the website.
 - `docs/can/`: DBC, reference scripts, and SmartView configuration screenshots.
 
 ```text
@@ -192,6 +194,26 @@ input. Type these commands in the serial monitor:
 It prints mains state, fault code and level, PWM state, actual rpm, and DC
 voltage every second. Use it first to confirm that the GIGA spins the deck
 motor exactly as the laptop did.
+
+### Website control
+
+`giga_r1_m7_web` lets the [SmartMow website](https://github.com/shaanferoz05/smartmow-website)
+drive the wheels over the GIGA's Wi-Fi:
+
+```sh
+pio run -e giga_r1_m7_web -t upload
+```
+
+It uses the same `Tm4Can` driver and streams RPDOs from boot with the power
+request at Startup. Arming from the website requests Power Ready. Holding a
+direction sends wheel commands (-1..+1 × `TM4_DRIVE_MAX_RPM`), ramped at the
+same 2.0/s as the full controller. If no command arrives for 500 ms, or CAN
+health is lost, the wheels stop. Like the bench tool, it ignores the handles,
+ignition, deck switch, and E-stop input, and it never runs the deck motors.
+CAN servicing and the dead-man run in their own realtime thread, so Wi-Fi
+stalls cannot interrupt SYNC/RPDOs (which would raise Fault 74). Wi-Fi settings
+are in `src/web_config.h`; put hotspot credentials in `src/web_secrets.h`
+(git-ignored). See the website repo's README for setup.
 
 The full controller prints its state and the same per-inverter status once a
 second.
