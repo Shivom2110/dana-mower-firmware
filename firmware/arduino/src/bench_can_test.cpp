@@ -76,14 +76,38 @@ uint8_t lineLen = 0;
 // Handle pot calibration (10-bit ADC on A0, bench env).
 // Forward push = lower ADC; reverse push = higher ADC.
 // Use 'd' command to measure actual values before changing these.
-static constexpr int POT_NEUTRAL   = 35;   // ADC at handle rest/center
-static constexpr int POT_FWD_RANGE = 12;   // counts from neutral to full-forward
-static constexpr int POT_REV_RANGE = 10;   // counts from neutral to full-reverse
-static constexpr int POT_DEADBAND  = 10;   // dead zone each side of neutral
-static constexpr int16_t POT_MAX_RPM = 30; // RPM ceiling — raise after confirming spin
+static constexpr int POT_NEUTRAL   = 378;  // ADC at handle rest/center (measured 2026-10-18: 377-379)
+static constexpr int POT_FWD_RANGE = 55;   // counts from neutral to full-forward (measured 321)
+static constexpr int POT_REV_RANGE = 28;   // counts from neutral to full-reverse (measured 408)
+static constexpr int POT_DEADBAND  = 15;   // dead zone each side of neutral (neutral returns 369-392)
+// Motor rpm (the wheel turns ~30x slower through the gearbox). Below ~200 rpm
+// the inverter cannot hold speed (it hunts 0-110 rpm), so the handle starts at
+// POT_MIN_RPM just past the dead zone and reaches POT_MAX_RPM at full travel.
+static constexpr int16_t POT_MIN_RPM = 200;
+static constexpr int16_t POT_MAX_RPM = 1000; // RPM ceiling — raise after confirming spin
+// A neutral reading must last this long before the motor is stopped. Brief
+// dips (pot noise near the reverse threshold) otherwise restart the 500 ms
+// stop + PWM handshake over and over, clicking the brake without turning.
+static constexpr uint32_t POT_STOP_DEBOUNCE_MS = 300;
+uint32_t potZeroSinceMs = 0;
+// The raw handle reading spikes by ~25 counts at neutral (seen down to 351
+// at a 378 neutral), enough to cross the forward threshold. Sample every
+// 5 ms and low-pass filter (~50 ms time constant) so spikes cannot command
+// the wheel.
+static constexpr uint32_t POT_SAMPLE_MS = 5;
+static constexpr float POT_FILTER_ALPHA = 0.1f;
+float potFiltered = -1.0f;  // < 0: not primed yet
+uint32_t lastPotSampleMs = 0;
 
 // Hysteresis: once running, the stop threshold is 3 counts wider than the
 // engage threshold, so boundary noise cannot toggle the motor off.
+// Distance d past neutral (beyond the dead zone) -> POT_MIN_RPM..POT_MAX_RPM.
+int16_t scaleRpm(int d, int range) {
+  const int span = max(1, range - POT_DEADBAND);
+  const int over = constrain(d - POT_DEADBAND, 0, span);
+  return (int16_t)(POT_MIN_RPM + (long)(POT_MAX_RPM - POT_MIN_RPM) * over / span);
+}
+
 int16_t potToRpm(int raw, int16_t current) {
   const int fwdThresh = (current > 0) ? (POT_NEUTRAL - POT_DEADBAND + 3)
                                        : (POT_NEUTRAL - POT_DEADBAND);
@@ -91,11 +115,11 @@ int16_t potToRpm(int raw, int16_t current) {
                                        : (POT_NEUTRAL + POT_DEADBAND);
   if (raw < fwdThresh) {
     const int d = POT_NEUTRAL - raw;
-    return (int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, POT_FWD_RANGE));
+    return scaleRpm(d, POT_FWD_RANGE);
   }
   if (raw > revThresh) {
     const int d = raw - POT_NEUTRAL;
-    return -(int16_t)min((int)POT_MAX_RPM, (int)POT_MAX_RPM * d / max(1, POT_REV_RANGE));
+    return -scaleRpm(d, POT_REV_RANGE);
   }
   return 0;
 }
@@ -126,6 +150,7 @@ void handleCommand(const char* cmd, uint32_t now) {
       Serial.println("Start streaming with 's' first.");
     } else {
       potControl = !potControl;
+      potFiltered = -1.0f;
       if (potControl) {
         Serial.print("Pot control ON — left handle drives right wheel, max ");
         Serial.print(POT_MAX_RPM);
@@ -253,11 +278,20 @@ void loop() {
   const uint32_t now = millis();
   tm4Bus.update(now);
 
-  // Pot-controlled drive: 8-sample average + hysteresis
-  if (potControl && tm4Bus.transmitting()) {
+  // Pot-controlled drive: 8-sample average, low-pass filter, hysteresis
+  if (potControl && tm4Bus.transmitting() && now - lastPotSampleMs >= POT_SAMPLE_MS) {
+    lastPotSampleMs = now;
     int potSum = 0;
     for (int i = 0; i < 8; i++) potSum += analogRead(A0);
-    const int16_t rpm = potToRpm(potSum >> 3, lastPotRpm);
+    const float raw = potSum / 8.0f;
+    potFiltered = potFiltered < 0.0f ? raw : potFiltered + POT_FILTER_ALPHA * (raw - potFiltered);
+    int16_t rpm = potToRpm((int)lroundf(potFiltered), lastPotRpm);
+    if (rpm == 0 && lastPotRpm != 0) {
+      if (potZeroSinceMs == 0) potZeroSinceMs = now;
+      if (now - potZeroSinceMs < POT_STOP_DEBOUNCE_MS) rpm = lastPotRpm;
+    } else {
+      potZeroSinceMs = 0;
+    }
     if (rpm != lastPotRpm) {
       requestAll(rpm != 0, rpm);
       lastPotRpm = rpm;
